@@ -1,0 +1,60 @@
+name: Pumpkin-MC/Pumpkin Daily Digest
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build and post digest
+        env:
+          GH_TOKEN: ${{ secrets.DIGEST_GH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          TODAY=$(date -u +%Y-%m-%d)
+          REPO="Pumpkin-MC/Pumpkin"
+
+          MERGED_PRS=$(gh pr list -R "$REPO" --state merged --search "merged:>=$SINCE" --json number,title,author,mergedAt --limit 50)
+          OPENED_ISSUES=$(gh issue list -R "$REPO" --state all --search "created:>=$SINCE" --json number,title,createdAt --limit 50)
+          CLOSED_ISSUES=$(gh issue list -R "$REPO" --state closed --search "closed:>=$SINCE" --json number,title,closedAt --limit 50)
+
+          ISSUE_449=$(gh api "repos/$REPO/issues/449" --jq '{title,state,updatedAt:.updated_at}')
+          ISSUE_449_RECENT_COMMENTS=$(gh api "repos/$REPO/issues/449/comments" --jq "[.[] | select(.created_at >= \"$SINCE\")] | length")
+
+          {
+            echo "# Pumpkin-MC/Pumpkin Daily Digest — $TODAY"
+            echo
+            echo "## Merged PRs (last 24h)"
+            if [ "$(echo "$MERGED_PRS" | jq 'length')" -eq 0 ]; then
+              echo "_None_"
+            else
+              echo "$MERGED_PRS" | jq -r '.[] | "- [#\(.number)](https://github.com/'"$REPO"'/pull/\(.number)) \(.title) — @\(.author.login)"'
+            fi
+            echo
+            echo "## Issues opened (last 24h)"
+            if [ "$(echo "$OPENED_ISSUES" | jq 'length')" -eq 0 ]; then
+              echo "_None_"
+            else
+              echo "$OPENED_ISSUES" | jq -r '.[] | "- [#\(.number)](https://github.com/'"$REPO"'/issues/\(.number)) \(.title)"'
+            fi
+            echo
+            echo "## Issues closed (last 24h)"
+            if [ "$(echo "$CLOSED_ISSUES" | jq 'length')" -eq 0 ]; then
+              echo "_None_"
+            else
+              echo "$CLOSED_ISSUES" | jq -r '.[] | "- [#\(.number)](https://github.com/'"$REPO"'/issues/\(.number)) \(.title)"'
+            fi
+            echo
+            echo "## 1.0.0 release tracking (#449)"
+            echo "$ISSUE_449" | jq -r '"- State: \(.state), last updated \(.updatedAt)"'
+            echo "- New comments in last 24h: $ISSUE_449_RECENT_COMMENTS"
+            echo
+            echo "[View #449 directly](https://github.com/$REPO/issues/449)"
+          } > digest.md
+
+          gh issue comment 1 -R Zexolver/github-digests -F digest.md
