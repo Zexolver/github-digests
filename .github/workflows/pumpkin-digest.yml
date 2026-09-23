@@ -57,4 +57,5 @@ jobs:
             echo "[View #449 directly](https://github.com/$REPO/issues/449)"
           } > digest.md
 
-          gh issue comment 1 -R Zexolver/github-digests -F digest.md
+          jq -Rs '{body: .}' digest.md > payload.json
+          gh api -X POST "repos/Zexolver/github-digests/issues/1/comments" --input payload.json
