@@ -33,7 +33,7 @@ jobs:
             if [ "$(echo "$MERGED_PRS" | jq 'length')" -eq 0 ]; then
               echo "_None_"
             else
-              echo "$MERGED_PRS" | jq -r '.[] | "- [#\(.number)](https://github.com/'"$REPO"'/pull/\(.number)) \(.title) — @\(.author.login)"'
+              echo "$MERGED_PRS" | jq -r '.[] | "- [#\(.number)](https://github.com/'"$REPO"'/pull/\(.number)) \(.title) — by [\(.author.login)](https://github.com/\(.author.login))"'
             fi
             echo
             echo "## Issues opened (last 24h)"
